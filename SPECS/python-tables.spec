@@ -1,123 +1,86 @@
-%global with_python3 1
-
-%{?filter_setup:
-%filter_provides_in %{python_sitearch}/.*\.so$
-%filter_provides_in %{python3_sitearch}/.*\.so$
-%filter_setup}
+%{?scl:%scl_package python-tables}
+%{!?scl:%global pkg_name %{name}}
 
 %global module  tables
 
 Summary:        Hierarchical datasets in Python
-Name:           python-%{module}
-Version:        3.0.0
-Release:        6%{?dist}
+Name:           %{?scl_prefix}python-%{module}
+Version:        3.1.1
+Release:        1%{?dist}
 Source0:        http://sourceforge.net/projects/pytables/files/pytables/%{version}/%{module}-%{version}.tar.gz
-Source1:        http://sourceforge.net/project/pytables/pytables/%{version}/pytablesmanual-%{version}.pdf
+# Source1:        http://sourceforge.net/project/pytables/pytables/%{version}/pytablesmanual-%{version}.pdf
 
 License:        BSD
 Group:          Development/Languages
 URL:            http://www.pytables.org
-Requires:       numpy
-Requires:       python-numexpr
+
+Requires:       %{?scl_prefix}numpy
+Requires:       %{?scl_prefix}python-numexpr
+%{?scl:Requires: %{scl}-runtime}
 
 BuildRequires:  hdf5-devel >= 1.8 bzip2-devel lzo-devel
-BuildRequires:  Cython >= 0.13 numpy python-numexpr
-BuildRequires:  python2-devel
+BuildRequires:  %{?scl_prefix}Cython
+BuildRequires:  %{?scl_prefix}numpy
+BuildRequires:  %{?scl_prefix}python-numexpr
+BuildRequires:  %{?scl_prefix}python-devel
+%{?scl:BuildRequires: %{scl}-build %{scl}-runtime}
 
-%if 0%{?with_python3}
-BuildRequires:  python3-Cython >= 0.13 python3-numpy python3-numexpr >= 2.2
-BuildRequires:  python3-devel
-%endif # with_python3
+BuildRoot: %{_tmppath}/%{pkg_name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 %description
 PyTables is a package for managing hierarchical datasets and designed
 to efficiently and easily cope with extremely large amounts of data.
 
-%if 0%{?with_python3}
-%package -n python3-%{module}
-Summary:        Hierarchical datasets in Python
+# %package        doc
+# Group:          Development/Languages
+# Summary:        Documentation for PyTables
+# BuildArch:      noarch
 
-Requires:       python3-numpy
-Requires:       python3-numexpr
-
-%description -n python3-%{module}
-PyTables is a package for managing hierarchical datasets and designed
-to efficiently and easily cope with extremely large amounts of data.
-
-This is the version for Python 3.
-%endif # with_python3
-
-%package        doc
-Group:          Development/Languages
-Summary:        Documentation for PyTables
-BuildArch:      noarch
-
-%description doc
-The %{name}-doc package contains the documentation related to
-PyTables.
+# %description doc
+# The %{name}-doc package contains the documentation related to
+# PyTables.
 
 %prep
 %setup -q -n %{module}-%{version}
 echo "import tables; tables.test()" > bench/check_all.py
-%if 0%{?with_python3}
-rm -rf %{py3dir}
-cp -a . %{py3dir}
-%endif # with_python3
-cp -a %{SOURCE1} .
 
 %build
-python setup.py build
-%if 0%{?with_python3}
-pushd %{py3dir}
-python3 setup.py build
-popd
-%endif # with_python3
+%{?scl:scl enable %{scl} - << \EOF}
+CFLAGS="%{optflags}" %{__python3} setup.py build
+%{?scl:EOF}
 
 %check
 libdir=`ls build/|grep lib`
 export PYTHONPATH=`pwd`/build/$libdir
-python bench/check_all.py
-
-%if 0%{?with_python3}
-pushd %{py3dir}
-libdir=`ls build/|grep lib`
-export PYTHONPATH=`pwd`/build/$libdir
-python3 bench/check_all.py
-popd
-%endif # with_python3
+%{?scl:scl enable %{scl} "}
+%{__python3} bench/check_all.py
+%{?scl:"}
 
 %install
 chmod -x examples/check_examples.sh
 for i in utils/*; do sed -i 's|bin/env |bin/|' $i; done
 
-python setup.py install -O1 --skip-build --root %{buildroot}
-%if 0%{?with_python3}
-pushd %{py3dir}
-python3 setup.py install -O1 --skip-build --root=%{buildroot}
-popd
-%endif # with_python3
-
+%{?scl:scl enable %{scl} "}
+%{__python3} setup.py install -O1 --skip-build --root %{buildroot}
+%{?scl:"}
 
 %files
 %doc *.txt LICENSES
 %{_bindir}/ptdump
 %{_bindir}/ptrepack
 %{_bindir}/pt2to3
-%{python_sitearch}/%{module}
-%{python_sitearch}/%{module}-%{version}-py*.egg-info
-
-%if 0%{?with_python3}
-%files -n python3-%{module}
-%doc *.txt LICENSES
 %{python3_sitearch}/%{module}
 %{python3_sitearch}/%{module}-%{version}-py*.egg-info
-%endif # with_python3
 
-%files doc
-%doc pytablesmanual-%{version}.pdf
-%doc examples/
+# %files doc
+# %doc pytablesmanual-%{version}.pdf
+# %doc examples/
 
 %changelog
+* Sat Aug 16 2014 Dmitrijs Milajevs <dimazest@gmail.com> - 3.1.1-1
+- Cleanup and adoptations for Software collections.
+- Update to 3.1.1
+
 * Sat Jun 07 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 3.0.0-6
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
 
